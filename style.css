@@ -390,6 +390,7 @@ h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.025em; color: var(--text-p
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    /* Header and layout */
     .mobile-header { display: flex; }
     .app-layout { flex-direction: column; }
     .sidebar { position: fixed; top: 0; bottom: 0; left: 0; transform: translateX(-100%); width: 280px; box-shadow: var(--shadow-md); }
@@ -397,15 +398,61 @@ h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.025em; color: var(--text-p
     .sidebar-overlay.show { display: block; opacity: 1; }
     .close-sidebar { display: flex; }
     .workspace-main { padding-top: var(--header-height); }
-    .workspace-content { padding: 2rem 1.5rem; }
-    .stats-grid { grid-template-columns: 1fr; }
-    .input-wrapper { flex-direction: column; }
-    .btn-primary { width: 100%; }
-    .task-controls { flex-direction: column; align-items: stretch; }
-    .filter-group { justify-content: center; }
-    .task-actions { opacity: 1; }
+    .workspace-content { padding: 1.5rem 1rem 5rem; }
+    
+    /* Headers */
+    .workspace-header { margin-bottom: 1.5rem; flex-direction: column; gap: 0.75rem; align-items: flex-start !important; }
+    .workspace-header > div:last-child { width: 100%; display: flex; }
+    .workspace-header .btn { flex: 1; justify-content: center; }
+    .greeting { font-size: 1.5rem; }
+    .greeting-subtitle { font-size: 0.95rem; }
+    
+    /* Stats */
+    .stats-grid { grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 1.5rem; }
+    
+    /* Task Creation Form */
+    .task-creation-section > div:last-child { gap: 1rem !important; padding: 1rem !important; }
+    #advanced-task-options { flex-direction: column !important; align-items: stretch !important; gap: 1rem !important; }
+    #advanced-task-options > div:first-child { flex-direction: column !important; gap: 1rem !important; }
+    .option-field { width: 100% !important; min-width: unset !important; }
+    #add-task-btn { width: 100%; justify-content: center; }
+    
+    /* Task Controls (Search, Sort, Filter) */
+    .task-controls { flex-direction: column; align-items: stretch !important; gap: 1rem !important; }
+    .task-controls > div { width: 100%; flex-direction: column; align-items: stretch !important; gap: 1rem !important; }
+    .search-box { width: 100%; min-width: unset !important; }
+    .sort-group { justify-content: space-between; width: 100%; }
+    .sort-group select { flex: 1; margin-left: 0.5rem; }
+    .filter-group { width: 100%; display: flex; }
+    .filter-btn { flex: 1; text-align: center; }
+    
+    /* Task Rows */
+    .task-row { align-items: flex-start; padding: 1rem 0; gap: 0.75rem; }
+    .task-text { font-size: 0.95rem; line-height: 1.4; word-break: break-word; overflow-wrap: break-word; white-space: normal; padding-right: 0; }
+    .task-metadata { display: flex; flex-wrap: wrap; gap: 0.5rem; line-height: 1.4; }
+    .task-actions { opacity: 1; align-self: flex-start; }
+    
+    /* Projects & Routines */
+    .projects-grid { grid-template-columns: 1fr; gap: 1rem; }
     .routine-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
     .routine-tracker { width: 100%; justify-content: space-between; }
+    
+    /* Calendar */
+    .calendar-controls { flex-wrap: wrap; justify-content: space-between; width: 100%; margin-top: 0.5rem; }
+    #calendar-month-year { font-size: 1.1rem; flex: 1; }
+    .calendar-day { padding: 0.25rem; min-height: 70px; }
+    .calendar-day-date { font-size: 0.75rem; }
+    .calendar-task { font-size: 0.65rem; padding: 0.15rem 0.25rem; }
+    .calendar-header > div { padding: 0.5rem 0.25rem !important; font-size: 0.75rem !important; }
+    #calendar-grid { min-height: unset !important; }
+    
+    /* Settings */
+    .settings-row { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+    .settings-row button { width: 100%; }
+    
+    /* Auth */
+    .auth-layout { padding: 1rem; }
+    .auth-card { padding: 2rem 1.25rem; }
 }
 
 /* =========================================
