@@ -337,11 +337,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('link-goto-signin').addEventListener('click', (e) => { e.preventDefault(); viewSignup.classList.add('hidden'); viewSignin.classList.remove('hidden'); });
     document.getElementById('link-goto-forgot').addEventListener('click', (e) => { e.preventDefault(); viewSignin.classList.add('hidden'); viewReset.classList.remove('hidden'); });
 
-    // Google Auth Stub
+    // Google Auth Implementation
     document.querySelectorAll('.btn-google-login').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            showToast('Google sign-in is coming soon.');
+            if (window.firebaseSignInGoogle) {
+                window.firebaseSignInGoogle();
+            } else {
+                showToast('Google sign-in is initializing...');
+            }
         });
     });
 
@@ -478,7 +482,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1500);
     });
 
-    btnSignout.addEventListener('click', () => {
+    btnSignout.addEventListener('click', async () => {
+        if (window.firebaseSignOut) {
+            try {
+                await window.firebaseSignOut();
+            } catch(e) {
+                console.error("Firebase Signout Error", e);
+            }
+        }
         currentUser = null;
         localStorage.removeItem('nexoraUser');
         loadData(); // clear memory
