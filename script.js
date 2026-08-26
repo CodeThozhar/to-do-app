@@ -341,9 +341,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.btn-google-login').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
+            console.log("Google Login Button Clicked!");
             if (window.firebaseSignInGoogle) {
+                console.log("Calling window.firebaseSignInGoogle...");
                 window.firebaseSignInGoogle();
             } else {
+                console.warn("window.firebaseSignInGoogle is not defined.");
                 showToast('Google sign-in is initializing...');
             }
         });

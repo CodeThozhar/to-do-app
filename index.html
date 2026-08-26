@@ -888,7 +888,7 @@
     <!-- Firebase Authentication (Google Sign-In) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -902,27 +902,24 @@
         };
 
         try {
+            console.log("Initializing Firebase...");
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const provider = new GoogleAuthProvider();
+            console.log("Firebase initialized successfully.");
             
             window.firebaseSignInGoogle = () => {
+                console.log("window.firebaseSignInGoogle called");
+                
                 if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                    console.error("Firebase config is using placeholders!");
                     alert("Please configure your Firebase credentials in index.html first!");
                     return;
                 }
-                signInWithRedirect(auth, provider);
-            };
-
-            window.firebaseSignOut = () => {
-                if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-                    return signOut(auth);
-                }
-                return Promise.resolve();
-            };
-
-            if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-                getRedirectResult(auth).then((result) => {
+                
+                console.log("Executing signInWithPopup...");
+                signInWithPopup(auth, provider).then((result) => {
+                    console.log("signInWithPopup succeeded!", result);
                     if (result && result.user) {
                         const user = result.user;
                         const nexoraUser = {
@@ -937,13 +934,22 @@
                             users.push({ ...nexoraUser, password: 'google-oauth' });
                             localStorage.setItem('nexoraUsers', JSON.stringify(users));
                         }
+                        
+                        // Let script.js know we logged in, or just reload to trigger init()
                         window.location.reload();
                     }
                 }).catch((error) => {
-                    console.error("Firebase Auth Error:", error);
-                    alert("Google Sign-In failed: " + error.message);
+                    console.error("signInWithPopup failed!", error);
+                    alert("Google Sign-In Error: " + error.message);
                 });
-            }
+            };
+
+            window.firebaseSignOut = () => {
+                if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                    return signOut(auth);
+                }
+                return Promise.resolve();
+            };
         } catch(e) {
             console.error("Firebase initialization failed:", e);
         }
