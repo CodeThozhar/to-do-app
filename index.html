@@ -885,10 +885,11 @@
         </div>
     </div>
 
-    <!-- Firebase Authentication (Google Sign-In) -->
+    <!-- Firebase Authentication & Firestore (Google Sign-In) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -905,7 +906,13 @@
             console.log("Initializing Firebase...");
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
+            const db = getFirestore(app);
             const provider = new GoogleAuthProvider();
+            
+            // Expose Firestore to global scope for script.js
+            window.firebaseDb = db;
+            window.firestoreFunctions = { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, where };
+            
             console.log("Firebase initialized successfully.");
             
             window.firebaseSignInGoogle = () => {

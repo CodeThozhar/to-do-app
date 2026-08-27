@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let tasks = [];
     let projects = [];
     let routines = [];
+    let tasksUnsubscribe = null;
 
     // --- LOGO COMPONENT ---
     const nexoraLogoSVG = `
@@ -301,6 +302,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- FIREBASE FIRESTORE HELPERS ---
+    async function firebaseSaveTask(task) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, setDoc } = window.firestoreFunctions;
+        try {
+            await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(task.id)), task);
+        } catch (e) {
+            console.error("Error saving task to Firestore:", e);
+        }
+    }
+
+    async function firebaseDeleteTask(taskId) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, deleteDoc } = window.firestoreFunctions;
+        try {
+            await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(taskId)));
+        } catch (e) {
+            console.error("Error deleting task from Firestore:", e);
+        }
+    }
+
+    async function firebaseDeleteTasks(taskIds) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, writeBatch } = window.firestoreFunctions;
+        try {
+            const batch = writeBatch(window.firebaseDb);
+            taskIds.forEach(id => {
+                const taskRef = doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(id));
+                batch.delete(taskRef);
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error("Error bulk deleting tasks from Firestore:", e);
+        }
+    }
+
     // --- 4. AUTHENTICATION LOGIC ---
     function initAuth() {
         if (currentUser) {
@@ -313,6 +350,26 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('sidebar-user-avatar').textContent = name.charAt(0).toUpperCase();
             document.getElementById('settings-user-name').textContent = name;
             document.getElementById('settings-user-email').textContent = currentUser.email;
+
+            // Setup Firestore Real-time Listener for tasks
+            if (currentUser.uid && window.firebaseDb && window.firestoreFunctions) {
+                if (tasksUnsubscribe) tasksUnsubscribe();
+                const { collection, onSnapshot } = window.firestoreFunctions;
+                tasksUnsubscribe = onSnapshot(collection(window.firebaseDb, "users", currentUser.uid, "tasks"), (snapshot) => {
+                    const loadedTasks = [];
+                    snapshot.forEach((doc) => loadedTasks.push(doc.data()));
+                    tasks = loadedTasks;
+                    saveData('nexoraTasks', tasks); // Keep localStorage backup updated
+
+                    // Re-render UI
+                    if (!document.getElementById('view-tasks').classList.contains('hidden')) renderTasks();
+                    if (!document.getElementById('view-project-detail').classList.contains('hidden')) renderProjectTasks(currentProjectId);
+                    if (!document.getElementById('view-calendar').classList.contains('hidden')) renderCalendar();
+                    updateStats();
+                }, (error) => {
+                    console.error("Firestore tasks listener error:", error);
+                });
+            }
 
             populateTaskProjectSelect();
             handleRoute();
@@ -493,6 +550,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Firebase Signout Error", e);
             }
         }
+        if (tasksUnsubscribe) {
+            tasksUnsubscribe();
+            tasksUnsubscribe = null;
+        }
         currentUser = null;
         localStorage.removeItem('nexoraUser');
         loadData(); // clear memory
@@ -644,6 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!itemToDelete) return;
 
         if (itemToDelete.type === 'task') {
+            firebaseDeleteTask(itemToDelete.id);
             tasks = tasks.filter(t => t.id !== itemToDelete.id);
             saveData('nexoraTasks', tasks);
             renderTasks();
@@ -653,7 +715,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (itemToDelete.type === 'project') {
             projects = projects.filter(p => p.id !== itemToDelete.id);
             // Unlink tasks from deleted project
-            tasks.forEach(t => { if (t.projectId === itemToDelete.id) t.projectId = null; });
+            tasks.forEach(t => { 
+                if (t.projectId === itemToDelete.id) {
+                    t.projectId = null; 
+                    firebaseSaveTask(t);
+                }
+            });
             saveData('nexoraProjects', projects);
             saveData('nexoraTasks', tasks);
             populateTaskProjectSelect();
@@ -668,12 +735,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const entity = itemToDelete.type.replace('bulk-', '');
 
             if (entity === 'tasks') {
+                firebaseDeleteTasks(Array.from(selectedIds));
                 tasks = tasks.filter(t => !selectedIds.has(t.id));
                 saveData('nexoraTasks', tasks);
                 updateTaskStats();
             } else if (entity === 'projects') {
                 projects = projects.filter(p => !selectedIds.has(p.id));
-                tasks.forEach(t => { if (selectedIds.has(t.projectId)) t.projectId = null; });
+                tasks.forEach(t => { 
+                    if (selectedIds.has(t.projectId)) {
+                        t.projectId = null;
+                        firebaseSaveTask(t);
+                    }
+                });
                 saveData('nexoraProjects', projects);
                 saveData('nexoraTasks', tasks);
                 populateTaskProjectSelect();
@@ -752,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const priority = document.getElementById('new-task-priority').value || 'medium';
         const dueDate = document.getElementById('new-task-date').value || null;
 
-        tasks.push({
+        const newTask = {
             id: Date.now(),
             title: title,
             completed: false,
@@ -760,7 +833,9 @@ document.addEventListener('DOMContentLoaded', () => {
             priority: priority,
             dueDate: dueDate,
             userId: currentUser.email
-        });
+        };
+        tasks.push(newTask);
+        firebaseSaveTask(newTask);
         saveData('nexoraTasks', tasks);
 
         taskInput.value = '';
@@ -974,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const task = tasks.find(t => t.id === id);
                 if (task) {
                     task.completed = !task.completed;
+                    firebaseSaveTask(task);
                     saveData('nexoraTasks', tasks);
                     renderTasks(); updateTaskStats();
                 }
@@ -1025,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             task.priority = priority;
             task.dueDate = dueDate;
 
+            firebaseSaveTask(task);
             saveData('nexoraTasks', tasks);
             renderTasks();
             closeModal('task');
@@ -1138,7 +1215,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = document.getElementById('project-task-input').value.trim();
         if (!title) return document.getElementById('project-task-input').focus();
 
-        tasks.push({ id: Date.now(), title: title, completed: false, projectId: currentProjectId, userId: currentUser.email });
+        const newTask = { id: Date.now(), title: title, completed: false, projectId: currentProjectId, userId: currentUser.email };
+        tasks.push(newTask);
+        firebaseSaveTask(newTask);
         saveData('nexoraTasks', tasks);
         document.getElementById('project-task-input').value = '';
         document.getElementById('project-task-input').focus();
@@ -1217,6 +1296,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newTitle = prompt('Edit task title:', task.title);
             if (newTitle !== null && newTitle.trim() !== '') {
                 task.title = newTitle.trim();
+                firebaseSaveTask(task);
                 saveData('nexoraTasks', tasks);
                 renderProjectDetail();
             }
@@ -1231,6 +1311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const task = tasks.find(t => t.id === id);
                 if (task) {
                     task.completed = !task.completed;
+                    firebaseSaveTask(task);
                     saveData('nexoraTasks', tasks);
                     renderProjectDetail(); updateTaskStats();
                 }
