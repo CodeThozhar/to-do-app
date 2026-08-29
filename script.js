@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let projects = [];
     let routines = [];
     let tasksUnsubscribe = null;
+    let projectsUnsubscribe = null;
+    let routinesUnsubscribe = null;
 
     // --- LOGO COMPONENT ---
     const nexoraLogoSVG = `
@@ -273,32 +275,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadData() {
         try {
             currentUser = JSON.parse(localStorage.getItem('nexoraUser'));
-
-            const allTasks = JSON.parse(localStorage.getItem('nexoraTasks')) || [];
-            const allProjects = JSON.parse(localStorage.getItem('nexoraProjects')) || [];
-            const allRoutines = JSON.parse(localStorage.getItem('nexoraRoutines')) || [];
-
-            if (currentUser) {
-                tasks = allTasks.filter(t => t.userId === currentUser.email);
-                projects = allProjects.filter(p => p.userId === currentUser.email);
-                routines = allRoutines.filter(r => r.userId === currentUser.email);
-            } else {
-                tasks = []; projects = []; routines = [];
-            }
+            
+            // We now rely on Firestore as the single source of truth for these
+            tasks = [];
+            projects = [];
+            routines = [];
         } catch (e) {
-            console.error('Error loading data', e);
+            console.error('Error loading user data', e);
             tasks = []; projects = []; routines = [];
-        }
-    }
-
-    function saveData(key, data) {
-        if (!currentUser) return;
-        try {
-            const allData = JSON.parse(localStorage.getItem(key)) || [];
-            const otherUsersData = allData.filter(item => item.userId !== currentUser.email);
-            localStorage.setItem(key, JSON.stringify([...otherUsersData, ...data]));
-        } catch (e) {
-            console.error('Error saving data', e);
         }
     }
 
@@ -338,6 +322,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function firebaseSaveProject(project) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, setDoc } = window.firestoreFunctions;
+        try {
+            await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "projects", String(project.id)), project);
+        } catch (e) {
+            console.error("Error saving project to Firestore:", e);
+        }
+    }
+
+    async function firebaseDeleteProject(projectId) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, deleteDoc } = window.firestoreFunctions;
+        try {
+            await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "projects", String(projectId)));
+        } catch (e) {
+            console.error("Error deleting project from Firestore:", e);
+        }
+    }
+
+    async function firebaseDeleteProjects(projectIds) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, writeBatch } = window.firestoreFunctions;
+        try {
+            const batch = writeBatch(window.firebaseDb);
+            projectIds.forEach(id => {
+                const ref = doc(window.firebaseDb, "users", currentUser.uid, "projects", String(id));
+                batch.delete(ref);
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error("Error bulk deleting projects from Firestore:", e);
+        }
+    }
+
+    async function firebaseSaveRoutine(routine) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, setDoc } = window.firestoreFunctions;
+        try {
+            await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "routines", String(routine.id)), routine);
+        } catch (e) {
+            console.error("Error saving routine to Firestore:", e);
+        }
+    }
+
+    async function firebaseDeleteRoutine(routineId) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, deleteDoc } = window.firestoreFunctions;
+        try {
+            await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "routines", String(routineId)));
+        } catch (e) {
+            console.error("Error deleting routine from Firestore:", e);
+        }
+    }
+
+    async function firebaseDeleteRoutines(routineIds) {
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        const { doc, writeBatch } = window.firestoreFunctions;
+        try {
+            const batch = writeBatch(window.firebaseDb);
+            routineIds.forEach(id => {
+                const ref = doc(window.firebaseDb, "users", currentUser.uid, "routines", String(id));
+                batch.delete(ref);
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error("Error bulk deleting routines from Firestore:", e);
+        }
+    }
+
     // --- 4. AUTHENTICATION LOGIC ---
     function initAuth() {
         if (currentUser) {
@@ -351,24 +405,41 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('settings-user-name').textContent = name;
             document.getElementById('settings-user-email').textContent = currentUser.email;
 
-            // Setup Firestore Real-time Listener for tasks
+            // Setup Firestore Real-time Listeners
             if (currentUser.uid && window.firebaseDb && window.firestoreFunctions) {
-                if (tasksUnsubscribe) tasksUnsubscribe();
                 const { collection, onSnapshot } = window.firestoreFunctions;
+                
+                if (tasksUnsubscribe) tasksUnsubscribe();
                 tasksUnsubscribe = onSnapshot(collection(window.firebaseDb, "users", currentUser.uid, "tasks"), (snapshot) => {
                     const loadedTasks = [];
                     snapshot.forEach((doc) => loadedTasks.push(doc.data()));
                     tasks = loadedTasks;
-                    saveData('nexoraTasks', tasks); // Keep localStorage backup updated
-
+                    
                     // Re-render UI
                     if (!document.getElementById('view-tasks').classList.contains('hidden')) renderTasks();
-                    if (!document.getElementById('view-project-detail').classList.contains('hidden')) renderProjectTasks(currentProjectId);
+                    if (!document.getElementById('view-project-detail').classList.contains('hidden')) renderProjectDetail();
                     if (!document.getElementById('view-calendar').classList.contains('hidden')) renderCalendar();
-                    updateStats();
-                }, (error) => {
-                    console.error("Firestore tasks listener error:", error);
-                });
+                }, (error) => console.error("Firestore tasks error:", error));
+
+                if (projectsUnsubscribe) projectsUnsubscribe();
+                projectsUnsubscribe = onSnapshot(collection(window.firebaseDb, "users", currentUser.uid, "projects"), (snapshot) => {
+                    const loadedProjects = [];
+                    snapshot.forEach((doc) => loadedProjects.push(doc.data()));
+                    projects = loadedProjects;
+                    
+                    populateTaskProjectSelect();
+                    if (!document.getElementById('view-projects').classList.contains('hidden')) renderProjects();
+                    if (!document.getElementById('view-project-detail').classList.contains('hidden')) renderProjectDetail();
+                }, (error) => console.error("Firestore projects error:", error));
+
+                if (routinesUnsubscribe) routinesUnsubscribe();
+                routinesUnsubscribe = onSnapshot(collection(window.firebaseDb, "users", currentUser.uid, "routines"), (snapshot) => {
+                    const loadedRoutines = [];
+                    snapshot.forEach((doc) => loadedRoutines.push(doc.data()));
+                    routines = loadedRoutines;
+                    
+                    if (!document.getElementById('view-routines').classList.contains('hidden')) renderRoutines();
+                }, (error) => console.error("Firestore routines error:", error));
             }
 
             populateTaskProjectSelect();
@@ -550,10 +621,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Firebase Signout Error", e);
             }
         }
-        if (tasksUnsubscribe) {
-            tasksUnsubscribe();
-            tasksUnsubscribe = null;
-        }
+        if (tasksUnsubscribe) { tasksUnsubscribe(); tasksUnsubscribe = null; }
+        if (projectsUnsubscribe) { projectsUnsubscribe(); projectsUnsubscribe = null; }
+        if (routinesUnsubscribe) { routinesUnsubscribe(); routinesUnsubscribe = null; }
         currentUser = null;
         localStorage.removeItem('nexoraUser');
         loadData(); // clear memory
@@ -707,12 +777,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (itemToDelete.type === 'task') {
             firebaseDeleteTask(itemToDelete.id);
             tasks = tasks.filter(t => t.id !== itemToDelete.id);
-            saveData('nexoraTasks', tasks);
             renderTasks();
             if (currentProjectId) renderProjectDetail();
             updateTaskStats();
             showToast('Task deleted');
         } else if (itemToDelete.type === 'project') {
+            firebaseDeleteProject(itemToDelete.id);
             projects = projects.filter(p => p.id !== itemToDelete.id);
             // Unlink tasks from deleted project
             tasks.forEach(t => { 
@@ -721,25 +791,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     firebaseSaveTask(t);
                 }
             });
-            saveData('nexoraProjects', projects);
-            saveData('nexoraTasks', tasks);
             populateTaskProjectSelect();
             renderProjects();
             showToast('Project deleted');
         } else if (itemToDelete.type === 'routine') {
+            firebaseDeleteRoutine(itemToDelete.id);
             routines = routines.filter(r => r.id !== itemToDelete.id);
-            saveData('nexoraRoutines', routines);
             renderRoutines();
             showToast('Routine deleted');
         } else if (itemToDelete.type.startsWith('bulk-')) {
             const entity = itemToDelete.type.replace('bulk-', '');
+            const selectedIdsArray = Array.from(selectedIds);
 
             if (entity === 'tasks') {
-                firebaseDeleteTasks(Array.from(selectedIds));
+                firebaseDeleteTasks(selectedIdsArray);
                 tasks = tasks.filter(t => !selectedIds.has(t.id));
-                saveData('nexoraTasks', tasks);
                 updateTaskStats();
             } else if (entity === 'projects') {
+                firebaseDeleteProjects(selectedIdsArray);
                 projects = projects.filter(p => !selectedIds.has(p.id));
                 tasks.forEach(t => { 
                     if (selectedIds.has(t.projectId)) {
@@ -747,12 +816,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         firebaseSaveTask(t);
                     }
                 });
-                saveData('nexoraProjects', projects);
-                saveData('nexoraTasks', tasks);
                 populateTaskProjectSelect();
             } else if (entity === 'routines') {
+                firebaseDeleteRoutines(selectedIdsArray);
                 routines = routines.filter(r => !selectedIds.has(r.id));
-                saveData('nexoraRoutines', routines);
             }
 
             const deletedCount = selectedIds.size;
@@ -836,7 +903,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         tasks.push(newTask);
         firebaseSaveTask(newTask);
-        saveData('nexoraTasks', tasks);
 
         taskInput.value = '';
         taskProjectSelect.value = '';
@@ -1050,7 +1116,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (task) {
                     task.completed = !task.completed;
                     firebaseSaveTask(task);
-                    saveData('nexoraTasks', tasks);
                     renderTasks(); updateTaskStats();
                 }
             }
@@ -1102,7 +1167,6 @@ document.addEventListener('DOMContentLoaded', () => {
             task.dueDate = dueDate;
 
             firebaseSaveTask(task);
-            saveData('nexoraTasks', tasks);
             renderTasks();
             closeModal('task');
             showToast('Task updated');
@@ -1120,16 +1184,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (idInput) {
             const p = projects.find(p => p.id === Number(idInput));
-            if (p) { p.name = name; p.description = desc; p.status = status; p.updatedAt = new Date().toISOString(); }
+            if (p) { 
+                p.name = name; p.description = desc; p.status = status; p.updatedAt = new Date().toISOString(); 
+                firebaseSaveProject(p);
+            }
         } else {
-            projects.push({
+            const newProject = {
                 id: Date.now(), name, description: desc, status, userId: currentUser.email,
                 createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
-            });
+            };
+            projects.push(newProject);
+            firebaseSaveProject(newProject);
             showToast('Project created');
         }
 
-        saveData('nexoraProjects', projects);
         populateTaskProjectSelect();
         renderProjects();
         closeModal('project');
@@ -1218,7 +1286,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const newTask = { id: Date.now(), title: title, completed: false, projectId: currentProjectId, userId: currentUser.email };
         tasks.push(newTask);
         firebaseSaveTask(newTask);
-        saveData('nexoraTasks', tasks);
         document.getElementById('project-task-input').value = '';
         document.getElementById('project-task-input').focus();
 
@@ -1297,7 +1364,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newTitle !== null && newTitle.trim() !== '') {
                 task.title = newTitle.trim();
                 firebaseSaveTask(task);
-                saveData('nexoraTasks', tasks);
                 renderProjectDetail();
             }
         }
@@ -1312,7 +1378,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (task) {
                     task.completed = !task.completed;
                     firebaseSaveTask(task);
-                    saveData('nexoraTasks', tasks);
                     renderProjectDetail(); updateTaskStats();
                 }
             }
@@ -1332,15 +1397,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (idInput) {
             const r = routines.find(r => r.id === Number(idInput));
-            if (r) { r.name = name; r.description = desc; r.frequency = freq; r.updatedAt = new Date().toISOString(); }
+            if (r) { 
+                r.name = name; r.description = desc; r.frequency = freq; r.updatedAt = new Date().toISOString(); 
+                firebaseSaveRoutine(r);
+            }
         } else {
-            routines.push({
+            const newRoutine = {
                 id: Date.now(), name, description: desc, frequency: freq, completedDates: [], userId: currentUser.email,
                 createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
-            });
+            };
+            routines.push(newRoutine);
+            firebaseSaveRoutine(newRoutine);
         }
 
-        saveData('nexoraRoutines', routines);
         renderRoutines();
         closeModal('routine');
     });
@@ -1414,7 +1483,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const index = r.completedDates.indexOf(todayISO);
                 if (index > -1) r.completedDates.splice(index, 1);
                 else r.completedDates.push(todayISO);
-                saveData('nexoraRoutines', routines);
+                firebaseSaveRoutine(r);
                 renderRoutines();
             }
         }
