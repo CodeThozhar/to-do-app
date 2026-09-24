@@ -272,117 +272,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSignout = document.getElementById('btn-signout');
 
     // --- 3. DATA PERSISTENCE ---
-    function loadData() {
-        // Clear local cache until Firestore loads it
-        tasks = [];
-        projects = [];
-        routines = [];
-    }
+    // (Local arrays are now strictly managed by Firebase listeners)
 
     // --- FIREBASE FIRESTORE HELPERS ---
     async function firebaseSaveTask(task) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, setDoc } = window.firestoreFunctions;
-        try {
-            await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(task.id)), task);
-        } catch (e) {
-            console.error("Error saving task to Firestore:", e);
-        }
+        await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(task.id)), task);
     }
 
     async function firebaseDeleteTask(taskId) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, deleteDoc } = window.firestoreFunctions;
-        try {
-            await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(taskId)));
-        } catch (e) {
-            console.error("Error deleting task from Firestore:", e);
-        }
+        await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(taskId)));
     }
 
     async function firebaseDeleteTasks(taskIds) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, writeBatch } = window.firestoreFunctions;
-        try {
-            const batch = writeBatch(window.firebaseDb);
-            taskIds.forEach(id => {
-                const taskRef = doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(id));
-                batch.delete(taskRef);
-            });
-            await batch.commit();
-        } catch (e) {
-            console.error("Error bulk deleting tasks from Firestore:", e);
-        }
+        const batch = writeBatch(window.firebaseDb);
+        taskIds.forEach(id => {
+            const taskRef = doc(window.firebaseDb, "users", currentUser.uid, "tasks", String(id));
+            batch.delete(taskRef);
+        });
+        await batch.commit();
     }
 
     async function firebaseSaveProject(project) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, setDoc } = window.firestoreFunctions;
-        try {
-            await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "projects", String(project.id)), project);
-        } catch (e) {
-            console.error("Error saving project to Firestore:", e);
-        }
+        await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "projects", String(project.id)), project);
     }
 
     async function firebaseDeleteProject(projectId) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, deleteDoc } = window.firestoreFunctions;
-        try {
-            await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "projects", String(projectId)));
-        } catch (e) {
-            console.error("Error deleting project from Firestore:", e);
-        }
+        await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "projects", String(projectId)));
     }
 
     async function firebaseDeleteProjects(projectIds) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, writeBatch } = window.firestoreFunctions;
-        try {
-            const batch = writeBatch(window.firebaseDb);
-            projectIds.forEach(id => {
-                const ref = doc(window.firebaseDb, "users", currentUser.uid, "projects", String(id));
-                batch.delete(ref);
-            });
-            await batch.commit();
-        } catch (e) {
-            console.error("Error bulk deleting projects from Firestore:", e);
-        }
+        const batch = writeBatch(window.firebaseDb);
+        projectIds.forEach(id => {
+            const ref = doc(window.firebaseDb, "users", currentUser.uid, "projects", String(id));
+            batch.delete(ref);
+        });
+        await batch.commit();
     }
 
     async function firebaseSaveRoutine(routine) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, setDoc } = window.firestoreFunctions;
-        try {
-            await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "routines", String(routine.id)), routine);
-        } catch (e) {
-            console.error("Error saving routine to Firestore:", e);
-        }
+        await setDoc(doc(window.firebaseDb, "users", currentUser.uid, "routines", String(routine.id)), routine);
     }
 
     async function firebaseDeleteRoutine(routineId) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, deleteDoc } = window.firestoreFunctions;
-        try {
-            await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "routines", String(routineId)));
-        } catch (e) {
-            console.error("Error deleting routine from Firestore:", e);
-        }
+        await deleteDoc(doc(window.firebaseDb, "users", currentUser.uid, "routines", String(routineId)));
     }
 
     async function firebaseDeleteRoutines(routineIds) {
-        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) return;
+        if (!currentUser || !currentUser.uid || !window.firebaseDb || !window.firestoreFunctions) throw new Error("Firebase not initialized");
         const { doc, writeBatch } = window.firestoreFunctions;
-        try {
-            const batch = writeBatch(window.firebaseDb);
-            routineIds.forEach(id => {
-                const ref = doc(window.firebaseDb, "users", currentUser.uid, "routines", String(id));
-                batch.delete(ref);
-            });
-            await batch.commit();
-        } catch (e) {
-            console.error("Error bulk deleting routines from Firestore:", e);
-        }
+        const batch = writeBatch(window.firebaseDb);
+        routineIds.forEach(id => {
+            const ref = doc(window.firebaseDb, "users", currentUser.uid, "routines", String(id));
+            batch.delete(ref);
+        });
+        await batch.commit();
     }
 
     // --- 4. AUTHENTICATION LOGIC ---
@@ -745,64 +704,76 @@ document.addEventListener('DOMContentLoaded', () => {
         openModal('confirm');
     }
 
-    document.getElementById('confirm-submit-btn').addEventListener('click', () => {
+    document.getElementById('confirm-submit-btn').addEventListener('click', async () => {
         if (!itemToDelete) return;
 
-        if (itemToDelete.type === 'task') {
-            firebaseDeleteTask(itemToDelete.id);
-            tasks = tasks.filter(t => t.id !== itemToDelete.id);
-            renderTasks();
-            if (currentProjectId) renderProjectDetail();
-            updateTaskStats();
-            showToast('Task deleted');
-        } else if (itemToDelete.type === 'project') {
-            firebaseDeleteProject(itemToDelete.id);
-            projects = projects.filter(p => p.id !== itemToDelete.id);
-            // Unlink tasks from deleted project
-            tasks.forEach(t => { 
-                if (t.projectId === itemToDelete.id) {
-                    t.projectId = null; 
-                    firebaseSaveTask(t);
-                }
-            });
-            populateTaskProjectSelect();
-            renderProjects();
-            showToast('Project deleted');
-        } else if (itemToDelete.type === 'routine') {
-            firebaseDeleteRoutine(itemToDelete.id);
-            routines = routines.filter(r => r.id !== itemToDelete.id);
-            renderRoutines();
-            showToast('Routine deleted');
-        } else if (itemToDelete.type.startsWith('bulk-')) {
-            const entity = itemToDelete.type.replace('bulk-', '');
-            const selectedIdsArray = Array.from(selectedIds);
+        const submitBtn = document.getElementById('confirm-submit-btn');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Processing...';
+        submitBtn.disabled = true;
 
-            if (entity === 'tasks') {
-                firebaseDeleteTasks(selectedIdsArray);
-                tasks = tasks.filter(t => !selectedIds.has(t.id));
+        try {
+            if (itemToDelete.type === 'task') {
+                await firebaseDeleteTask(itemToDelete.id);
+                tasks = tasks.filter(t => t.id !== itemToDelete.id);
+                renderTasks();
+                if (currentProjectId) renderProjectDetail();
                 updateTaskStats();
-            } else if (entity === 'projects') {
-                firebaseDeleteProjects(selectedIdsArray);
-                projects = projects.filter(p => !selectedIds.has(p.id));
-                tasks.forEach(t => { 
-                    if (selectedIds.has(t.projectId)) {
-                        t.projectId = null;
-                        firebaseSaveTask(t);
+                showToast('Task deleted');
+            } else if (itemToDelete.type === 'project') {
+                await firebaseDeleteProject(itemToDelete.id);
+                projects = projects.filter(p => p.id !== itemToDelete.id);
+                // Unlink tasks from deleted project
+                for (let t of tasks) {
+                    if (t.projectId === itemToDelete.id) {
+                        t.projectId = null; 
+                        firebaseSaveTask(t).catch(console.error);
                     }
-                });
+                }
                 populateTaskProjectSelect();
-            } else if (entity === 'routines') {
-                firebaseDeleteRoutines(selectedIdsArray);
-                routines = routines.filter(r => !selectedIds.has(r.id));
+                renderProjects();
+                showToast('Project deleted');
+            } else if (itemToDelete.type === 'routine') {
+                await firebaseDeleteRoutine(itemToDelete.id);
+                routines = routines.filter(r => r.id !== itemToDelete.id);
+                renderRoutines();
+                showToast('Routine deleted');
+            } else if (itemToDelete.type.startsWith('bulk-')) {
+                const entity = itemToDelete.type.replace('bulk-', '');
+                const selectedIdsArray = Array.from(selectedIds);
+
+                if (entity === 'tasks') {
+                    await firebaseDeleteTasks(selectedIdsArray);
+                    tasks = tasks.filter(t => !selectedIds.has(t.id));
+                    updateTaskStats();
+                } else if (entity === 'projects') {
+                    await firebaseDeleteProjects(selectedIdsArray);
+                    projects = projects.filter(p => !selectedIds.has(p.id));
+                    for (let t of tasks) {
+                        if (selectedIds.has(t.projectId)) {
+                            t.projectId = null;
+                            firebaseSaveTask(t).catch(console.error);
+                        }
+                    }
+                    populateTaskProjectSelect();
+                } else if (entity === 'routines') {
+                    await firebaseDeleteRoutines(selectedIdsArray);
+                    routines = routines.filter(r => !selectedIds.has(r.id));
+                }
+
+                const deletedCount = selectedIds.size;
+                cancelSelectionMode(entity);
+                showToast(`${deletedCount} ${entity} deleted`);
             }
-
-            const deletedCount = selectedIds.size;
-            cancelSelectionMode(entity);
-            showToast(`${deletedCount} ${entity} deleted`);
+            closeModal('confirm');
+            itemToDelete = null;
+        } catch (error) {
+            console.error("Deletion error:", error);
+            showToast('Unable to delete. Check your connection and try again.');
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         }
-
-        closeModal('confirm');
-        itemToDelete = null;
     });
 
 
@@ -849,7 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.focus(); renderTasks();
     });
 
-    function addTask() {
+    async function addTask() {
         const title = taskInput.value.trim();
         if (!title) {
             showToast('Please enter a task.');
@@ -873,19 +844,32 @@ document.addEventListener('DOMContentLoaded', () => {
             projectId: projectId,
             priority: priority,
             dueDate: dueDate,
-            userId: currentUser.email
+            userId: currentUser.uid // Ensure it uses uid to be safe, though rules check it
         };
-        tasks.push(newTask);
-        firebaseSaveTask(newTask);
+        
+        const origText = addTaskBtn.innerHTML;
+        addTaskBtn.innerHTML = 'Saving...';
+        addTaskBtn.disabled = true;
 
-        taskInput.value = '';
-        taskProjectSelect.value = '';
-        document.getElementById('new-task-priority').value = 'medium';
-        document.getElementById('new-task-date').value = '';
-        taskInput.focus();
-
-        renderTasks();
-        showToast('Task created');
+        try {
+            await firebaseSaveTask(newTask);
+            if (!tasks.find(t => t.id === newTask.id)) {
+                tasks.push(newTask);
+            }
+            taskInput.value = '';
+            taskProjectSelect.value = '';
+            document.getElementById('new-task-priority').value = 'medium';
+            document.getElementById('new-task-date').value = '';
+            taskInput.focus();
+            renderTasks();
+            showToast('Task created');
+        } catch (error) {
+            console.error("Add task error:", error);
+            showToast('Unable to save changes. Check your connection and try again.');
+        } finally {
+            addTaskBtn.innerHTML = origText;
+            addTaskBtn.disabled = false;
+        }
     }
     addTaskBtn.addEventListener('click', addTask);
     taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTask(); } });
@@ -1081,16 +1065,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    taskList.addEventListener('change', (e) => {
+    taskList.addEventListener('change', async (e) => {
         if (e.target.classList.contains('task-checkbox')) {
             const taskRow = e.target.closest('.task-row');
             if (taskRow) {
                 const id = Number(taskRow.dataset.id);
                 const task = tasks.find(t => t.id === id);
                 if (task) {
+                    const prevStatus = task.completed;
                     task.completed = !task.completed;
-                    firebaseSaveTask(task);
-                    renderTasks(); updateTaskStats();
+                    e.target.disabled = true;
+                    try {
+                        await firebaseSaveTask(task);
+                        renderTasks(); updateTaskStats();
+                    } catch(err) {
+                        console.error("Update error:", err);
+                        task.completed = prevStatus;
+                        e.target.checked = prevStatus;
+                        showToast('Unable to save changes. Check your connection and try again.');
+                    } finally {
+                        e.target.disabled = false;
+                    }
                 }
             }
         }
@@ -1123,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('task-form').addEventListener('submit', (e) => {
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const idInput = document.getElementById('task-id').value;
         const title = document.getElementById('task-title').value.trim();
@@ -1135,19 +1130,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const task = tasks.find(t => t.id === Number(idInput));
         if (task) {
+            const originalTask = { ...task };
             task.title = title;
             task.projectId = projectId;
             task.priority = priority;
             task.dueDate = dueDate;
 
-            firebaseSaveTask(task);
-            renderTasks();
-            closeModal('task');
-            showToast('Task updated');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const origText = submitBtn.textContent;
+            submitBtn.textContent = 'Saving...';
+            submitBtn.disabled = true;
+
+            try {
+                await firebaseSaveTask(task);
+                renderTasks();
+                closeModal('task');
+                showToast('Task updated');
+            } catch (err) {
+                console.error("Update task error:", err);
+                Object.assign(task, originalTask);
+                showToast('Unable to save changes. Check your connection and try again.');
+            } finally {
+                submitBtn.textContent = origText;
+                submitBtn.disabled = false;
+            }
         }
     });
 
-    document.getElementById('project-form').addEventListener('submit', (e) => {
+    document.getElementById('project-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const idInput = document.getElementById('project-id').value;
         const name = document.getElementById('project-name').value.trim();
@@ -1156,25 +1166,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!name) return;
 
-        if (idInput) {
-            const p = projects.find(p => p.id === Number(idInput));
-            if (p) { 
-                p.name = name; p.description = desc; p.status = status; p.updatedAt = new Date().toISOString(); 
-                firebaseSaveProject(p);
-            }
-        } else {
-            const newProject = {
-                id: Date.now(), name, description: desc, status, userId: currentUser.email,
-                createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
-            };
-            projects.push(newProject);
-            firebaseSaveProject(newProject);
-            showToast('Project created');
-        }
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const origText = submitBtn.textContent;
+        submitBtn.textContent = 'Saving...';
+        submitBtn.disabled = true;
 
-        populateTaskProjectSelect();
-        renderProjects();
-        closeModal('project');
+        try {
+            if (idInput) {
+                const p = projects.find(p => p.id === Number(idInput));
+                if (p) { 
+                    const originalP = { ...p };
+                    p.name = name; p.description = desc; p.status = status; p.updatedAt = new Date().toISOString(); 
+                    try {
+                        await firebaseSaveProject(p);
+                    } catch(err) {
+                        Object.assign(p, originalP);
+                        throw err;
+                    }
+                }
+            } else {
+                const newProject = {
+                    id: Date.now(), name, description: desc, status, userId: currentUser.uid,
+                    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+                };
+                await firebaseSaveProject(newProject);
+                if (!projects.find(p => p.id === newProject.id)) projects.push(newProject);
+                showToast('Project created');
+            }
+            populateTaskProjectSelect();
+            renderProjects();
+            closeModal('project');
+        } catch (error) {
+            console.error("Project save error:", error);
+            showToast('Unable to save changes. Check your connection and try again.');
+        } finally {
+            submitBtn.textContent = origText;
+            submitBtn.disabled = false;
+        }
     });
 
     function renderProjects() {
@@ -1613,19 +1641,24 @@ document.addEventListener('DOMContentLoaded', () => {
             
             onAuthStateChanged(window.firebaseAuth, (user) => {
                 if (user) {
-                    currentUser = {
-                        name: user.displayName || user.email.split('@')[0],
-                        email: user.email,
-                        uid: user.uid
-                    };
-                    loadData();
-                    initAuth();
+                    // Only re-init if new session
+                    if (!currentUser || currentUser.uid !== user.uid) {
+                        currentUser = {
+                            name: user.displayName || user.email.split('@')[0],
+                            email: user.email,
+                            uid: user.uid
+                        };
+                        tasks = [];
+                        projects = [];
+                        routines = [];
+                        initAuth();
+                    }
                 } else {
                     currentUser = null;
                     if (tasksUnsubscribe) { tasksUnsubscribe(); tasksUnsubscribe = null; }
                     if (projectsUnsubscribe) { projectsUnsubscribe(); projectsUnsubscribe = null; }
                     if (routinesUnsubscribe) { routinesUnsubscribe(); routinesUnsubscribe = null; }
-                    loadData();
+                    tasks = []; projects = []; routines = [];
                     initAuth();
                     history.pushState(null, '', window.location.pathname);
                 }
