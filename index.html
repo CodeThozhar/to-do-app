@@ -139,28 +139,19 @@
                 </button>
                 <div class="auth-header">
                     <h2>Reset Password</h2>
-                    <p>Prototype local password reset flow.</p>
+                    <p>Enter your email to receive a password reset link.</p>
                 </div>
                 <form id="reset-form" class="auth-form">
                     <div class="form-group">
                         <label for="reset-email">Email</label>
                         <input type="email" id="reset-email" class="form-input" placeholder="name@example.com" required>
                     </div>
-                    <div class="form-group">
-                        <label for="reset-password">New Password</label>
-                        <input type="password" id="reset-password" class="form-input" placeholder="••••••••" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="reset-password-confirm">Confirm New Password</label>
-                        <input type="password" id="reset-password-confirm" class="form-input" placeholder="••••••••"
-                            required>
-                    </div>
                     <div id="reset-error" class="form-error hidden"
                         style="color: var(--danger); font-size: 0.85rem; margin-bottom: 1rem; text-align: center;">
                     </div>
                     <div id="reset-success" class="form-success hidden"
                         style="color: #10b981; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;"></div>
-                    <button type="submit" class="btn btn-primary btn-full">Reset Password</button>
+                    <button type="submit" class="btn btn-primary btn-full">Send Reset Link</button>
                 </form>
             </div>
         </div>
@@ -885,10 +876,15 @@
         </div>
     </div>
 
-    <!-- Firebase Authentication & Firestore (Google Sign-In) -->
+    <script>
+        // Redirect 127.0.0.1 to localhost to prevent Firebase Auth domain errors during local testing
+        if (window.location.hostname === '127.0.0.1') {
+            window.location.hostname = 'localhost';
+        }
+    </script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Your web app's Firebase configuration
@@ -909,53 +905,30 @@
             const db = getFirestore(app);
             const provider = new GoogleAuthProvider();
             
-            // Expose Firestore to global scope for script.js
+            // Set persistence to local to ensure session survives browser restart
+            setPersistence(auth, browserLocalPersistence).catch((error) => {
+                console.error("Auth persistence error:", error);
+            });
+            
+            // Expose Firebase and functions to global scope for script.js
+            window.firebaseAuth = auth;
             window.firebaseDb = db;
             window.firestoreFunctions = { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, where };
+            window.firebaseAuthFunctions = { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail };
+            window.firebaseProvider = provider;
             
             console.log("Firebase initialized successfully.");
             
             window.firebaseSignInGoogle = () => {
-                console.log("window.firebaseSignInGoogle called");
-                
                 if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-                    console.error("Firebase config is using placeholders!");
                     alert("Please configure your Firebase credentials in index.html first!");
-                    return;
+                    return Promise.reject("Missing config");
                 }
-                
-                console.log("Executing signInWithPopup...");
-                signInWithPopup(auth, provider).then((result) => {
-                    console.log("signInWithPopup succeeded!", result);
-                    if (result && result.user) {
-                        const user = result.user;
-                        const nexoraUser = {
-                            name: user.displayName || user.email.split('@')[0],
-                            email: user.email,
-                            uid: user.uid
-                        };
-                        localStorage.setItem('nexoraUser', JSON.stringify(nexoraUser));
-                        
-                        let users = JSON.parse(localStorage.getItem('nexoraUsers')) || [];
-                        if (!users.find(u => u.email === user.email)) {
-                            users.push({ ...nexoraUser, password: 'google-oauth' });
-                            localStorage.setItem('nexoraUsers', JSON.stringify(users));
-                        }
-                        
-                        // Let script.js know we logged in, or just reload to trigger init()
-                        window.location.reload();
-                    }
-                }).catch((error) => {
-                    console.error("signInWithPopup failed!", error);
-                    alert("Google Sign-In Error: " + error.message);
-                });
+                return signInWithPopup(auth, provider);
             };
 
             window.firebaseSignOut = () => {
-                if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-                    return signOut(auth);
-                }
-                return Promise.resolve();
+                return signOut(auth);
             };
         } catch(e) {
             console.error("Firebase initialization failed:", e);

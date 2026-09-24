@@ -273,17 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. DATA PERSISTENCE ---
     function loadData() {
-        try {
-            currentUser = JSON.parse(localStorage.getItem('nexoraUser'));
-            
-            // We now rely on Firestore as the single source of truth for these
-            tasks = [];
-            projects = [];
-            routines = [];
-        } catch (e) {
-            console.error('Error loading user data', e);
-            tasks = []; projects = []; routines = [];
-        }
+        // Clear local cache until Firestore loads it
+        tasks = [];
+        projects = [];
+        routines = [];
     }
 
     // --- FIREBASE FIRESTORE HELPERS ---
@@ -469,13 +462,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.btn-google-login').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log("Google Login Button Clicked!");
             if (window.firebaseSignInGoogle) {
-                console.log("Calling window.firebaseSignInGoogle...");
-                window.firebaseSignInGoogle();
+                window.firebaseSignInGoogle().catch(err => {
+                    console.error("Google Sign-In Error:", err);
+                    showToast(err.message || 'Google Sign-In failed');
+                });
             } else {
-                console.warn("window.firebaseSignInGoogle is not defined.");
-                showToast('Google sign-in is initializing...');
+                showToast('Google sign-in is not ready...');
             }
         });
     });
@@ -490,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    document.getElementById('signin-form').addEventListener('submit', (e) => {
+    document.getElementById('signin-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('signin-email').value.trim();
         const password = document.getElementById('signin-password').value;
@@ -502,26 +495,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('nexoraUsers')) || [];
-        const user = users.find(u => u.email === email && u.password === password);
-
-        if (user) {
-            errorEl.classList.add('hidden');
-            currentUser = { email: user.email, name: user.name };
-            localStorage.setItem('nexoraUser', JSON.stringify(currentUser));
-
-            document.getElementById('signin-email').value = '';
-            document.getElementById('signin-password').value = '';
-
-            loadData();
-            initAuth();
+        if (window.firebaseAuth && window.firebaseAuthFunctions) {
+            const { signInWithEmailAndPassword } = window.firebaseAuthFunctions;
+            try {
+                await signInWithEmailAndPassword(window.firebaseAuth, email, password);
+                errorEl.classList.add('hidden');
+                document.getElementById('signin-email').value = '';
+                document.getElementById('signin-password').value = '';
+            } catch (error) {
+                errorEl.textContent = 'Invalid email or password.';
+                errorEl.classList.remove('hidden');
+                console.error("Sign in error:", error);
+            }
         } else {
-            errorEl.textContent = 'Invalid email or password.';
+            errorEl.textContent = 'Firebase is not initialized.';
             errorEl.classList.remove('hidden');
         }
     });
 
-    document.getElementById('signup-form').addEventListener('submit', (e) => {
+    document.getElementById('signup-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('signup-name').value.trim();
         const email = document.getElementById('signup-email').value.trim();
@@ -541,76 +533,66 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('nexoraUsers')) || [];
-        if (users.find(u => u.email === email)) {
-            errorEl.textContent = 'An account with this email already exists.';
+        if (window.firebaseAuth && window.firebaseAuthFunctions) {
+            const { createUserWithEmailAndPassword, updateProfile } = window.firebaseAuthFunctions;
+            try {
+                const userCredential = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+                await updateProfile(userCredential.user, { displayName: name });
+                
+                errorEl.classList.add('hidden');
+                document.getElementById('signup-name').value = '';
+                document.getElementById('signup-email').value = '';
+                document.getElementById('signup-password').value = '';
+                document.getElementById('signup-password-confirm').value = '';
+            } catch (error) {
+                errorEl.textContent = error.message || 'Error creating account.';
+                errorEl.classList.remove('hidden');
+                console.error("Sign up error:", error);
+            }
+        } else {
+            errorEl.textContent = 'Firebase is not initialized.';
             errorEl.classList.remove('hidden');
-            return;
         }
-
-        users.push({ name, email, password });
-        localStorage.setItem('nexoraUsers', JSON.stringify(users));
-
-        errorEl.classList.add('hidden');
-
-        document.getElementById('signup-name').value = '';
-        document.getElementById('signup-email').value = '';
-        document.getElementById('signup-password').value = '';
-        document.getElementById('signup-password-confirm').value = '';
-
-        viewSignup.classList.add('hidden');
-        viewSignin.classList.remove('hidden');
     });
 
     // Reset Password Logic
-    document.getElementById('reset-form').addEventListener('submit', (e) => {
+    document.getElementById('reset-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('reset-email').value.trim();
-        const password = document.getElementById('reset-password').value;
-        const confirmPassword = document.getElementById('reset-password-confirm').value;
         const errorEl = document.getElementById('reset-error');
         const successEl = document.getElementById('reset-success');
 
         errorEl.classList.add('hidden');
         successEl.classList.add('hidden');
 
-        if (!email || !password || !confirmPassword) {
-            errorEl.textContent = 'Please fill out all fields.';
+        if (!email) {
+            errorEl.textContent = 'Please enter your email.';
             errorEl.classList.remove('hidden');
             return;
         }
 
-        if (password !== confirmPassword) {
-            errorEl.textContent = 'Passwords do not match.';
+        if (window.firebaseAuth && window.firebaseAuthFunctions) {
+            const { sendPasswordResetEmail } = window.firebaseAuthFunctions;
+            try {
+                await sendPasswordResetEmail(window.firebaseAuth, email);
+                successEl.textContent = 'Password reset email sent!';
+                successEl.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    document.getElementById('reset-email').value = '';
+                    successEl.classList.add('hidden');
+                    viewReset.classList.add('hidden');
+                    viewSignin.classList.remove('hidden');
+                }, 2000);
+            } catch (error) {
+                errorEl.textContent = error.message || 'Error sending reset email.';
+                errorEl.classList.remove('hidden');
+                console.error("Reset password error:", error);
+            }
+        } else {
+            errorEl.textContent = 'Firebase is not initialized.';
             errorEl.classList.remove('hidden');
-            return;
         }
-
-        const users = JSON.parse(localStorage.getItem('nexoraUsers')) || [];
-        const userIndex = users.findIndex(u => u.email === email);
-
-        if (userIndex === -1) {
-            errorEl.textContent = 'Invalid email or password.'; // Keeps validation ambiguous
-            errorEl.classList.remove('hidden');
-            return;
-        }
-
-        // Update password
-        users[userIndex].password = password;
-        localStorage.setItem('nexoraUsers', JSON.stringify(users));
-
-        successEl.textContent = 'Password reset successful!';
-        successEl.classList.remove('hidden');
-
-        // Clear fields and return to sign in after delay
-        setTimeout(() => {
-            document.getElementById('reset-email').value = '';
-            document.getElementById('reset-password').value = '';
-            document.getElementById('reset-password-confirm').value = '';
-            successEl.classList.add('hidden');
-            viewReset.classList.add('hidden');
-            viewSignin.classList.remove('hidden');
-        }, 1500);
     });
 
     btnSignout.addEventListener('click', async () => {
@@ -621,14 +603,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Firebase Signout Error", e);
             }
         }
-        if (tasksUnsubscribe) { tasksUnsubscribe(); tasksUnsubscribe = null; }
-        if (projectsUnsubscribe) { projectsUnsubscribe(); projectsUnsubscribe = null; }
-        if (routinesUnsubscribe) { routinesUnsubscribe(); routinesUnsubscribe = null; }
-        currentUser = null;
-        localStorage.removeItem('nexoraUser');
-        loadData(); // clear memory
-        initAuth();
-        history.pushState(null, '', window.location.pathname);
     });
 
     // --- 5. FRONTEND ROUTER ---
@@ -1629,6 +1603,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- BOOTSTRAP ---
-    loadData();
-    initAuth();
+    function setupFirebaseListener() {
+        if (window.firebaseAuth && window.firebaseAuthFunctions) {
+            const { onAuthStateChanged } = window.firebaseAuthFunctions;
+            
+            // Show loading state by hiding both layouts
+            authLayout.classList.add('hidden');
+            appLayout.classList.add('hidden');
+            
+            onAuthStateChanged(window.firebaseAuth, (user) => {
+                if (user) {
+                    currentUser = {
+                        name: user.displayName || user.email.split('@')[0],
+                        email: user.email,
+                        uid: user.uid
+                    };
+                    loadData();
+                    initAuth();
+                } else {
+                    currentUser = null;
+                    if (tasksUnsubscribe) { tasksUnsubscribe(); tasksUnsubscribe = null; }
+                    if (projectsUnsubscribe) { projectsUnsubscribe(); projectsUnsubscribe = null; }
+                    if (routinesUnsubscribe) { routinesUnsubscribe(); routinesUnsubscribe = null; }
+                    loadData();
+                    initAuth();
+                    history.pushState(null, '', window.location.pathname);
+                }
+            });
+        } else {
+            setTimeout(setupFirebaseListener, 100);
+        }
+    }
+
+    setupFirebaseListener();
 });
